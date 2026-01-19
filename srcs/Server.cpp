@@ -1,4 +1,5 @@
 #include "../includes/Server.hpp"
+#include "../includes/irc.hpp"
 
 Server::Server(int port, const std::string& password)
 	: _serverFd(-1), _password(password)
@@ -83,7 +84,8 @@ void Server::acceptClient()
 
 void Server::receiveData(int clientFd)
 {
-	char buffer[512];
+	char 		buffer[512];
+	std::string	finalBuffer;
 	ssize_t bytes = recv(clientFd, buffer, sizeof(buffer), 0);
 
 	if (bytes <= 0)
@@ -92,7 +94,9 @@ void Server::receiveData(int clientFd)
 		return;
 	}
 
-	_clients[clientFd]->recvBuffer.append(buffer, bytes);
+	input_parser(finalBuffer, buffer, bytes);
+
+	_clients[clientFd]->recvBuffer.append(finalBuffer, finalBuffer.length());
 }
 
 void Server::sendData(int clientFd)

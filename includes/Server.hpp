@@ -1,16 +1,20 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   Server.hpp                                         :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: lantonio <lantonio@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/01/19 11:35:29 by lantonio          #+#    #+#             */
+/*   Updated: 2026/01/19 11:35:33 by lantonio         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #ifndef SERVER_HPP
 #define SERVER_HPP
-#include <vector>
-#include <poll.h>
-#include <map>
-#include <stdexcept>
-#include <cstring>
-#include <unistd.h>
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <iostream>
+
 #include "Client.hpp"
+#include "irc.hpp"
 
 class Server
 {
