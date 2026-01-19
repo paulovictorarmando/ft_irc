@@ -96,7 +96,10 @@ void Server::receiveData(int clientFd)
 
 	input_parser(finalBuffer, buffer, bytes);
 
-	_clients[clientFd]->recvBuffer.append(finalBuffer, finalBuffer.length());
+	if (finalBuffer.length() > 512) 
+		std::cout << "Too long command!" << std::endl;
+	else
+		_clients[clientFd]->recvBuffer.append(finalBuffer, finalBuffer.length());
 }
 
 void Server::sendData(int clientFd)
