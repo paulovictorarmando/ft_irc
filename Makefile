@@ -3,13 +3,15 @@ NAME = ircserv
 SRC = srcs/main.cpp\
 	  srcs/Server.cpp\
 	  srcs/Client.cpp\
-	  srcs/Parser.cpp\
+	  srcs/Command.cpp\
 
 CXX = c++
 
 CXXFLAGS = -Wall -Wextra -Werror -std=c++98
 
-HEAD = includes/Client.hpp\
+HEAD = includes/irc.hpp\
+		includes/Client.hpp\
+		includes/Command.hpp\
 		includes/Server.hpp\
 
 OBJ = $(SRC:.cpp=.o)

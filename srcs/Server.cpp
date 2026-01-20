@@ -1,4 +1,5 @@
 #include "../includes/Server.hpp"
+#include "../includes/Command.hpp"
 #include "../includes/irc.hpp"
 
 Server::Server(int port, const std::string& password)
@@ -86,6 +87,7 @@ void Server::receiveData(int clientFd)
 {
 	char 		buffer[512];
 	std::string	finalBuffer;
+	std::string	comando;
 	ssize_t bytes = recv(clientFd, buffer, sizeof(buffer), 0);
 
 	if (bytes <= 0)
@@ -94,12 +96,15 @@ void Server::receiveData(int clientFd)
 		return;
 	}
 
-	input_builder(finalBuffer, buffer, bytes);
+	comando = _clients[clientFd]->command.input_builder(finalBuffer, buffer, bytes);
 
-	if (finalBuffer.length() > 512) 
+	if (comando.length() > 512) 
 		std::cout << "Too long command!" << std::endl;
 	else
-		_clients[clientFd]->recvBuffer.append(finalBuffer, finalBuffer.length());
+		_clients[clientFd]->recvBuffer.append(comando);
+
+	_clients[clientFd]->command.command_builder(_clients[clientFd]->recvBuffer);
+
 }
 
 void Server::sendData(int clientFd)
