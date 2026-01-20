@@ -6,7 +6,7 @@
 /*   By: lantonio <lantonio@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/19 11:25:06 by lantonio          #+#    #+#             */
-/*   Updated: 2026/01/19 12:19:15 by lantonio         ###   ########.fr       */
+/*   Updated: 2026/01/20 11:21:58 by lantonio         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,6 @@
 #include <iostream>
 #include <sstream>
 
-void input_parser(std::string &bufferAcumulado, char *newBuffer, int bytesRead);
+void input_builder(std::string &bufferAcumulado, char *newBuffer, int bytesRead);
 
 #endif

@@ -1,6 +1,8 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
+
 #include <string>
+#include "Command.hpp"
 
 class	Client
 {
@@ -17,6 +19,8 @@ class	Client
 
 		std::string	recvBuffer;
 		std::string	sendBuffer;
+
+		Command		command;
 
 		Client(int fd);
 		~Client();
