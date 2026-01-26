@@ -105,11 +105,11 @@ void Server::acceptClient(void)
 
 void Server::receiveData(int indexFd)
 {
-	char buffer[6000];
-	ssize_t bytes = recv(_pollfds[indexFd].fd, buffer, sizeof(buffer), 0);
-
-	int fd = _pollfds[indexFd].fd;
-	Client *client = _clients[fd];
+	char        buffer[6000];
+	int         fd =_pollfds[indexFd].fd;
+	Client      *client = _clients[fd];
+	
+	ssize_t     bytes = recv(fd, buffer, sizeof(buffer), 0);
 
 	if (bytes <= 0)
 	{
@@ -127,6 +127,7 @@ void Server::receiveData(int indexFd)
 	for (size_t i = 0; i < comandos.size(); ++i)
 	{
 		std::string &cmd = comandos[i];
+		if (cmd.empty()) continue;
 
 		if (cmd.length() > 512)
 		{
@@ -134,32 +135,30 @@ void Server::receiveData(int indexFd)
 		}
 		else
 		{
+			// O _parsing deve processar a lógica e retornar a string formatada da RFC 1459
+			// Ex: Se recebeu "PING", retorna "PONG :servidor\r\n"
 			std::string reply = _parsing(cmd, fd);
 			client->sendBuffer.append(reply);
 		}
-	}
-
-	if (!client->sendBuffer.empty())
 		enablePollout(fd);
+	}
 }
 
 void Server::sendData(int indexFd)
 {
 	int clientFd = _pollfds[indexFd].fd;
 	Client* client = _clients[clientFd];
-	if (client->sendBuffer.empty())
-		return;
-	ssize_t bytes = send(clientFd,
-		client->sendBuffer.c_str(),
-		client->sendBuffer.size(),
-		0);
 
-	if (bytes <= 0)
-	{
-		if (bytes < 0)
-			std::cout << "Error in function send" << std::endl;
-		else
-			std::cout << "Client disconnected: " << clientFd << std::endl;
+	if (client->sendBuffer.empty()) {
+		disablePollout(clientFd);
+		return;
+	}
+	ssize_t bytes = send(clientFd, client->sendBuffer.c_str(), client->sendBuffer.size(), 0);
+	if (bytes <= 0) {
+		if (bytes < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) return;
+			std::cerr << "Erro fatal no send" << std::endl;
+		}
 		removeClient(indexFd);
 		return;
 	}

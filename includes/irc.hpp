@@ -5,8 +5,8 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: lantonio <lantonio@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/01/26 11:36:51 by lantonio          #+#    #+#             */
-/*   Updated: 2026/01/26 11:37:38 by lantonio         ###   ########.fr       */
+/*   Created: 2026/01/26 13:44:13 by lantonio          #+#    #+#             */
+/*   Updated: 2026/01/26 13:44:33 by lantonio         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,5 +29,6 @@
 #include <sys/types.h>
 #include <iostream>
 #include <csignal>
+#include <cerrno>
 
 #endif

@@ -2,11 +2,8 @@
 #define SERVER_HPP
 
 #include "irc.hpp"
-// includes project files
 #include "Client.hpp"
-
-//#include "Channel.hpp"
-class Client;
+#include "Channel.hpp"
 
 // Struct Request
 typedef struct s_Request
