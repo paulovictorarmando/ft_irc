@@ -1,27 +1,12 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-// contains necessary libraries
-#include <vector>
-#include <map>
-#include "string"
-
-//server libraries
-#include <poll.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-
-#include <exception>
-#include <cstring>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <iostream>
-#include <csignal>
-
+#include "irc.hpp"
 // includes project files
 #include "Client.hpp"
-#include "Channel.hpp"
+
+//#include "Channel.hpp"
+class Client;
 
 // Struct Request
 typedef struct s_Request
