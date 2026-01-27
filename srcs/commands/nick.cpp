@@ -6,7 +6,7 @@
 /*   By: hmateque <hmateque@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/26 00:00:00 by hmateque          #+#    #+#             */
-/*   Updated: 2026/01/26 14:50:28 by hmateque         ###   ########.fr       */
+/*   Updated: 2026/01/27 10:04:56 by hmateque         ###   ########.fr       */
 /*                                                                            */
 /******************************************************************************/
 
@@ -37,72 +37,42 @@ static bool isValidNickname(const std::string& nick)
 	return true;
 }
 
-std::string Server::_setNickName(commandRequest& request, int sender_fd)
+std::string Server::_setNickName(commandRequest& request, int fd) 
 {
-	std::string response;
-	std::string oldNick = _clients[sender_fd]->getNickname();
-	
-	// Se não foi fornecido nickname
-	if (request.args.empty())
-	{
-		// ERR_NONICKNAMEGIVEN (431)
-		std::string nick = oldNick.empty() ? "*" : oldNick;
-		response = ":localhost 431 " + nick + " :No nickname given\r\n";
-		return response;
-	}
-	
-	std::string newNick = request.args[0];
-	
-	// Validar formato do nickname
-	if (!isValidNickname(newNick))
-	{
-		// ERR_ERRONEUSNICKNAME (432)
-		std::string nick = oldNick.empty() ? "*" : oldNick;
-		response = ":localhost 432 " + nick + " " + newNick + " :Erroneous nickname\r\n";
-		return response;
-	}
-	
-	// Verificar se o nickname já está em uso
-	for (std::map<int, Client*>::iterator it = _clients.begin(); 
-		it != _clients.end(); ++it)
-	{
-		if (it->first != sender_fd && it->second->getNickname() == newNick)
-		{
-			// ERR_NICKNAMEINUSE (433)
-			std::string nick = oldNick.empty() ? "*" : oldNick;
-			response = ":localhost 433 " + nick + " " + newNick + " :Nickname is already in use\r\n";
-			return response;
-		}
-	}
-	
-	// Definir o novo nickname
-	_clients[sender_fd]->setNickname(newNick);
-	
-	// Se o cliente já tinha um nickname (mudança de nick)
-	if (!oldNick.empty())
-	{
-		// Notificar a mudança
-		response = ":" + oldNick + "!~" + _clients[sender_fd]->getUsername() + 
-				   "@localhost NICK :" + newNick + "\r\n";
-		std::cout << "Client " << sender_fd << " changed nickname from " 
-				  << oldNick << " to " << newNick << std::endl;
-	}
-	else
-	{
-		// Primeiro nickname definido
-		std::cout << "Client " << sender_fd << " set nickname to: " 
-				  << newNick << std::endl;
-		
-		// Se já tiver username definido, consideramos autenticado
-		if (!_clients[sender_fd]->getUsername().empty())
-		{
-			// RPL_WELCOME (001)
-			response = ":localhost 001 " + newNick + " :Welcome to the Internet Relay Network " + 
-					   newNick + "!~" + _clients[sender_fd]->getUsername() + "@localhost\r\n";
-			_clients[sender_fd]->auth = true;
-		}
-	}
-	
-	return response;
+    if (!_clients[fd]->getHasPass())
+        return ":localhost 464 * :Password required. Send PASS first.\r\n";
+
+    if (request.args.empty())
+        return ":localhost 431 * :No nickname given\r\n";
+
+    std::string newNick = request.args[0];
+    if (!isValidNickname(newNick))
+        return ":localhost 432 * " + newNick + " :Erroneous nickname\r\n";
+
+    // Declarar oldNick ANTES de usar
+    std::string oldNick = _clients[fd]->getNickname();
+
+    // Verificar se o nickname já está em uso
+    for (std::map<int, Client*>::iterator it = _clients.begin(); 
+        it != _clients.end(); ++it)
+    {
+        if (it->first != fd && it->second->getNickname() == newNick)
+        {
+            // ERR_NICKNAMEINUSE (433)
+            std::string nick = oldNick.empty() ? "*" : oldNick;
+            return ":localhost 433 " + nick + " " + newNick + " :Nickname is already in use\r\n";
+        }
+    }
+    
+    // Definir o novo nickname
+    _clients[fd]->setNickname(newNick);
+    _clients[fd]->setHasNick(true);
+
+    // Se já tinha nickname, notificar a mudança
+    if (!oldNick.empty())
+        return ":" + oldNick + " NICK " + newNick + "\r\n";
+    
+    // Caso contrário, tentar completar o registro
+    return attemptRegistration(fd);
 }
 

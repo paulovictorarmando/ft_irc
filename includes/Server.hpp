@@ -24,6 +24,15 @@
 #include "Client.hpp"
 #include "Channel.hpp"
 
+// Macros para cores
+#define RESET   "\033[0m"
+#define RED     "\033[31m"
+#define GREEN   "\033[32m"
+#define YELLOW  "\033[33m"
+#define BLUE    "\033[34m"
+#define MAGENTA "\033[35m"
+#define CYAN    "\033[36m"
+
 // Struct Request
 typedef struct s_Request
 {
@@ -55,10 +64,14 @@ class Server
 		//bool	auth(int clientFd);
 
 		std::string _parsing(const std::string& msg, int sender_fd);
+		void printRequest(const std::string& input, const commandRequest& req);
 		commandRequest _splitRequest(const std::string& req);
 		std::string _printHelpInfo(int sender_fd);
 		std::string _setNickName(commandRequest& request, int sender_fd);
 		std::string _pingPong(commandRequest& request, int sender_fd);
+		std::string _setPassWord(commandRequest& request, int fd);
+        std::string _setUserName(commandRequest& request, int fd);
+        std::string attemptRegistration(int fd);
 
 	public:
 		Server(int port, const std::string& password);

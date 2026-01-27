@@ -57,9 +57,8 @@ void Server::setupSocket(void)
 
 void Server::run(void)
 {
-	signal(SIGINT, handler); //^C
-	signal(SIGQUIT, handler); // "^\" ou ^|
-	//signal(SIGTSTP, handler); // ^Z
+	signal(SIGINT, handler);
+	signal(SIGQUIT, handler); 
 	std::cout << "Server running in localhost port " << this->_port << std::endl;
 	while (true)
 	{
@@ -84,7 +83,7 @@ void Server::acceptClient(void)
 {
 	int clientFd = accept(_serverFd, NULL, NULL);
 	if (clientFd < 0)
-		return;;
+		return;
 
 	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
 	{
@@ -97,9 +96,6 @@ void Server::acceptClient(void)
 	pfd.revents = 0;
 	_pollfds.push_back(pfd);
 	_clients[clientFd] = new Client(clientFd);
-	// std::cout << "New client connected: " << clientFd << std::endl;
-	// _clients[clientFd]->sendBuffer += welcome();
-	// enablePollout(clientFd);
 }
 
 void Server::receiveData(int indexFd)
@@ -116,13 +112,13 @@ void Server::receiveData(int indexFd)
         return;
     }
 
-    _clients[clientFd]->recvBuffer.append(buffer, bytes);
+    _clients[clientFd]->setRecvBuffer(_clients[clientFd]->getRecvBuffer() + std::string(buffer, bytes));
 
     size_t pos;
-    while ((pos = _clients[clientFd]->recvBuffer.find("\n")) != std::string::npos) 
+    while ((pos = _clients[clientFd]->getRecvBuffer().find("\n")) != std::string::npos) 
     {
-        std::string command = _clients[clientFd]->recvBuffer.substr(0, pos);
-        _clients[clientFd]->recvBuffer.erase(0, pos + 1);
+        std::string command = _clients[clientFd]->getRecvBuffer().substr(0, pos);
+        _clients[clientFd]->setRecvBuffer(_clients[clientFd]->getRecvBuffer().substr(pos + 1));
 
         if (!command.empty() && command[command.size() - 1] == '\r')
             command.erase(command.size() - 1);
@@ -131,13 +127,11 @@ void Server::receiveData(int indexFd)
 
         std::cout << "Executando comando do socket " << clientFd << ": " << command << std::endl;
 
-        // O _parsing deve processar a lógica e retornar a string formatada da RFC 1459
-        // Ex: Se recebeu "PING", retorna "PONG :servidor\r\n"
         std::string response = _parsing(command, clientFd); 
 
         if (!response.empty()) 
-{
-            _clients[clientFd]->sendBuffer.append(response);
+        {
+            _clients[clientFd]->setSendBuffer(_clients[clientFd]->getSendBuffer() + response);
             enablePollout(clientFd);
         }
     }
@@ -148,21 +142,23 @@ void Server::sendData(int indexFd)
     int clientFd = _pollfds[indexFd].fd;
     Client* client = _clients[clientFd];
 
-    if (client->sendBuffer.empty()) {
+    if (client->getSendBuffer().empty()) {
         disablePollout(clientFd);
         return;
     }
-    ssize_t bytes = send(clientFd, client->sendBuffer.c_str(), client->sendBuffer.size(), 0);
-    if (bytes <= 0) {
-        if (bytes < 0) {
+    ssize_t bytes = send(clientFd, client->getSendBuffer().c_str(), client->getSendBuffer().size(), 0);
+    if (bytes <= 0) 
+    {
+        if (bytes < 0) 
+        {
             if (errno == EAGAIN || errno == EWOULDBLOCK) return;
             std::cerr << "Erro fatal no send" << std::endl;
         }
         removeClient(indexFd);
         return;
     }
-    client->sendBuffer.erase(0, bytes);
-    if (client->sendBuffer.empty())
+    client->setSendBuffer(client->getSendBuffer().substr(bytes));
+    if (client->getSendBuffer().empty())
         disablePollout(clientFd);
 }
 
@@ -204,13 +200,13 @@ void Server::disablePollout(int fd)
 std::string	Server::welcome(void)
 {
 	std::string msg;
-	msg.append("██╗    ██╗███████╗██╗      ██████╗ ██████╗ ███╗   ███╗███████╗\n");
-	msg.append("██║    ██║██╔════╝██║     ██╔════╝██╔═══██╗████╗ ████║██╔════╝\n");
-	msg.append("██║ █╗ ██║█████╗  ██║     ██║     ██║   ██║██╔████╔██║█████╗\n");
-	msg.append("██║███╗██║██╔══╝  ██║     ██║     ██║   ██║██║╚██╔╝██║██╔══╝\n");
-	msg.append("╚███╔███╔╝███████╗███████╗╚██████╗╚██████╔╝██║ ╚═╝ ██║███████╗\n");
-	msg.append(" ╚══╝╚══╝ ╚══════╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝\n");
-	msg.append("You need to login so you can start chatting\r\n");
+	msg.append("██╗    ██╗███████╗██╗      ██████╗ ██████╗ ███╗   ███╗███████╗\r\n");
+	msg.append("██║    ██║██╔════╝██║     ██╔════╝██╔═══██╗████╗ ████║██╔════╝\r\n");
+	msg.append("██║ █╗ ██║█████╗  ██║     ██║     ██║   ██║██╔████╔██║█████╗\r\n");
+	msg.append("██║███╗██║██╔══╝  ██║     ██║     ██║   ██║██║╚██╔╝██║██╔══╝\r\n");
+	msg.append("╚███╔███╔╝███████╗███████╗╚██████╗╚██████╔╝██║ ╚═╝ ██║███████╗\r\n");
+	msg.append(" ╚══╝╚══╝ ╚══════╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝\r\n");
+	msg.append("You can send /QUOTE HELP (irssi) or /HELP (nc) for help\r\n");
 	return (msg);
 };
 
