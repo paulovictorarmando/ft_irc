@@ -52,6 +52,7 @@ class Server
 		std::string _pingPong(commandRequest& request, int sender_fd);
 		std::string _setPassWord(commandRequest& request, int fd);
         std::string _setUserName(commandRequest& request, int fd);
+		std::string _privmsg(commandRequest& request, int sender_fd);
         std::string attemptRegistration(int fd);
 
 	public:

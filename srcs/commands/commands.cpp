@@ -27,11 +27,35 @@ std::string Server::_parsing(const std::string& msg, int sender_fd) {
     if (request.command == "NICK") return _setNickName(request, sender_fd);
     if (request.command == "USER") return _setUserName(request, sender_fd);
     if (request.command == "PING") return _pingPong(request, sender_fd);
+    if (request.command == "PRIVMSG") return _privmsg(request, sender_fd);
     if (request.command == "HELP" || request.command == "H") return _printHelpInfo(sender_fd);
 
     // Resposta padrão RFC para comando desconhecido (421)
     std::string nick = _clients[sender_fd]->getNickname().empty() ? "*" : _clients[sender_fd]->getNickname();
     return ":localhost 421 " + nick + " " + request.command + " :Unknown command\r\n";
+}
+
+//_privmsg(request, sender_fd);
+std::string Server::_privmsg(commandRequest& request, int sender_fd)
+{
+    if (!_clients[sender_fd]->isAuth())
+        return ":localhost 451 * :You have not registered\r\n";
+    if (request.args.size() < 1)
+        return ":localhost 461 PRIVMSG :Not enough parameters\r\n";
+    int recv_fd = -1;
+    for (std::map<int, Client*>::iterator it = _clients.begin(); it != _clients.end();++it)
+    {
+        if (it->second->getNickname() == request.args[0])
+            recv_fd = it->first;
+    }
+    if (recv_fd == -1)
+        return ":localhost 401 " + _clients[sender_fd]->getNickname() + " " + request.args[0]+" :No such nick\r\n";
+    
+    std::string msg = ":" + _clients[sender_fd]->getNickname() + "!" + _clients[sender_fd]->getUsername() + "@localhost PRIVMSG " + request.args[0] +" :" + request.args[1] + "\r\n";
+
+    _clients[recv_fd]->setSendBuffer(_clients[recv_fd]->getSendBuffer() + msg);
+    enablePollout(recv_fd);
+    return "";
 }
 
 commandRequest Server::_splitRequest(const std::string& req)

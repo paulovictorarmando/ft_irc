@@ -113,6 +113,7 @@ void Server::receiveData(int indexFd)
 			std::cout << "Error in recv()" << std::endl;
 		else
 			std::cout << "Client disconnected: " << fd << std::endl;
+	}
 
     _clients[clientFd]->setRecvBuffer(_clients[clientFd]->getRecvBuffer() + std::string(buffer, bytes));
 
@@ -127,7 +128,7 @@ void Server::receiveData(int indexFd)
 
         if (command.empty()) continue;
 
-	std::vector<std::string> comandos = _clients[_pollfds[indexFd].fd]->command->input_builder(client->recvBuffer, buffer, bytes);
+		std::vector<std::string> comandos = _clients[_pollfds[indexFd].fd]->command->input_builder(client->recvBuffer, buffer, bytes);
 
         std::string response = _parsing(command, clientFd); 
 
