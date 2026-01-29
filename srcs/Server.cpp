@@ -96,6 +96,32 @@ void Server::acceptClient(void)
 	pfd.revents = 0;
 	_pollfds.push_back(pfd);
 	_clients[clientFd] = new Client(clientFd);
+	std::cout << "New client connected: " << clientFd << std::endl;
+}
+
+std::vector<std::string> Server::_input_builder(Client* client, char *newBuffer, int bytesRead)
+{
+	std::vector<std::string> comandos;
+
+	// Obter o buffer acumulado do cliente
+	std::string bufferAcumulado = client->getRecvBuffer();
+	
+	// Adicionar novos dados ao buffer
+	bufferAcumulado.append(newBuffer, bytesRead);
+
+	// Extrair comandos completos (terminados com \r\n)
+	size_t pos;
+	while ((pos = bufferAcumulado.find("\r\n")) != std::string::npos)
+	{
+		std::string cmd = bufferAcumulado.substr(0, pos);
+		comandos.push_back(cmd);
+		bufferAcumulado.erase(0, pos + 2);
+	}
+
+	// Atualizar o buffer do cliente com os dados restantes
+	client->setRecvBuffer(bufferAcumulado);
+
+	return comandos;
 }
 
 void Server::receiveData(int indexFd)
@@ -112,55 +138,60 @@ void Server::receiveData(int indexFd)
 			std::cout << "Error in recv()" << std::endl;
 		else
 			std::cout << "Client disconnected: " << fd << std::endl;
+		removeClient(fd);
+		return;
+	}
 
-    _clients[fd]->setRecvBuffer(_clients[fd]->getRecvBuffer() + std::string(buffer, bytes));
+	//std::cout << "Buffer received from client " << fd << ": " << std::string(buffer, bytes) << std::endl;
 
-    size_t pos;
-    while ((pos = _clients[fd]->getRecvBuffer().find("\n")) != std::string::npos) 
-    {
-        std::string command = _clients[fd]->getRecvBuffer().substr(0, pos);
-        _clients[fd]->setRecvBuffer(_clients[fd]->getRecvBuffer().substr(pos + 1));
+	std::vector<std::string> commands = _input_builder(client, buffer, bytes);
 
-        if (!command.empty() && command[command.size() - 1] == '\r')
-            command.erase(command.size() - 1);
+	for (size_t i = 0; i < commands.size(); ++i)
+	{
+		std::string &cmd = commands[i];
+		if (cmd.empty()) continue;
 
-        if (command.empty()) continue;
-
-		std::vector<std::string> comandos = _clients[fd]->command->input_builder(client->recvBuffer, buffer, bytes);
-
-        std::string response = _parsing(command, clientFd); 
-
-        if (!response.empty()) 
-        {
-            _clients[fd]->setSendBuffer(_clients[fd]->getSendBuffer() + response);
-            enablePollout(clientFd);
-        }
-    }
+		if (cmd.length() > 512)
+		{
+			client->setSendBuffer(client->getSendBuffer().append("ERROR :Command too long\r\n"));
+			//client->sendBuffer.append("ERROR :Command too long\r\n");
+		}
+		else
+		{
+			// O _parsing deve processar a lógica e retornar a string formatada da RFC 1459
+			// Ex: Se recebeu "PING", retorna "PONG :servidor\r\n"
+			std::string reply = _parsing(cmd, fd);
+			client->setSendBuffer(client->getSendBuffer().append(reply));
+			//client->sendBuffer.append(reply);
+			//std::cout << "Command: " << cmd << std::endl;
+		}
+		enablePollout(fd);
+	}
 }
 
 void Server::sendData(int indexFd)
 {
-    int clientFd = _pollfds[indexFd].fd;
-    Client* client = _clients[clientFd];
+	int clientFd = _pollfds[indexFd].fd;
+	Client* client = _clients[clientFd];
 
-    if (client->getSendBuffer().empty()) {
-        disablePollout(clientFd);
-        return;
-    }
-    ssize_t bytes = send(clientFd, client->getSendBuffer().c_str(), client->getSendBuffer().size(), 0);
-    if (bytes <= 0) 
-    {
-        if (bytes < 0) 
-        {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) return;
-            std::cerr << "Erro fatal no send" << std::endl;
-        }
-        removeClient(indexFd);
-        return;
-    }
-    client->setSendBuffer(client->getSendBuffer().substr(bytes));
-    if (client->getSendBuffer().empty())
-        disablePollout(clientFd);
+	if (client->getSendBuffer().empty()) {
+		disablePollout(clientFd);
+		return;
+	}
+	ssize_t bytes = send(clientFd, client->getSendBuffer().c_str(), client->getSendBuffer().size(), 0);
+	if (bytes <= 0) 
+	{
+		if (bytes < 0) 
+		{
+			if (errno == EAGAIN || errno == EWOULDBLOCK) return;
+			std::cerr << "Erro fatal no send" << std::endl;
+		}
+		removeClient(indexFd);
+		return;
+	}
+	client->setSendBuffer(client->getSendBuffer().substr(bytes));
+	if (client->getSendBuffer().empty())
+		disablePollout(clientFd);
 }
 
 void Server::removeClient(int indexFd)
@@ -213,43 +244,43 @@ std::string	Server::welcome(void)
 
 std::string Server::_printHelpInfo(int sender_fd)
 {
-    std::string helpMsg;
-    std::string nick = _clients[sender_fd]->getNickname();
-    if (nick.empty())
-        nick = "*";
-    
-    // RPL_INFO (371) para cada linha de ajuda
-    helpMsg.append(":localhost 371 " + nick + " :=== Available IRC Commands ===\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :Authentication & Setup:\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :  PASS <password>           - Authenticate with server password\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :  NICK <nickname>           - Set your nickname\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :  USER <user> <mode> <unused> :<realname> - Set user information\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :Channel Operations:\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :  JOIN <#channel> [key]     - Join a channel (with optional password)\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :  PART <#channel> [reason]  - Leave a channel\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :  TOPIC <#channel> [topic]  - View or set channel topic\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :Messaging:\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :  PRIVMSG <target> :<msg>   - Send private message to user or channel\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :Operator Commands:\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :  KICK <#channel> <user> [reason] - Eject user from channel\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :  INVITE <user> <#channel>  - Invite user to channel\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :  MODE <#channel> <flags>   - Change channel mode:\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :    +i/-i  Invite-only channel\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :    +t/-t  Topic restricted to operators\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :    +k/-k <key>  Set/remove channel password\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :    +o/-o <user>  Give/take operator privilege\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :    +l/-l <limit>  Set/remove user limit\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :Other:\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :  QUIT [message]            - Disconnect from server\r\n");
-    helpMsg.append(":localhost 371 " + nick + " :  HELP                      - Display this help\r\n");
-    // RPL_ENDOFINFO (374)
-    helpMsg.append(":localhost 374 " + nick + " :End of INFO list\r\n");
-    
-    std::cout << "Help information sent to client: " << sender_fd << std::endl;
-    return helpMsg;
+	std::string helpMsg;
+	std::string nick = _clients[sender_fd]->getNickname();
+	if (nick.empty())
+		nick = "*";
+	
+	// RPL_INFO (371) para cada linha de ajuda
+	helpMsg.append(":localhost 371 " + nick + " :=== Available IRC Commands ===\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :Authentication & Setup:\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :  PASS <password>           - Authenticate with server password\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :  NICK <nickname>           - Set your nickname\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :  USER <user> <mode> <unused> :<realname> - Set user information\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :Channel Operations:\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :  JOIN <#channel> [key]     - Join a channel (with optional password)\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :  PART <#channel> [reason]  - Leave a channel\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :  TOPIC <#channel> [topic]  - View or set channel topic\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :Messaging:\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :  PRIVMSG <target> :<msg>   - Send private message to user or channel\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :Operator Commands:\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :  KICK <#channel> <user> [reason] - Eject user from channel\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :  INVITE <user> <#channel>  - Invite user to channel\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :  MODE <#channel> <flags>   - Change channel mode:\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :    +i/-i  Invite-only channel\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :    +t/-t  Topic restricted to operators\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :    +k/-k <key>  Set/remove channel password\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :    +o/-o <user>  Give/take operator privilege\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :    +l/-l <limit>  Set/remove user limit\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :Other:\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :  QUIT [message]            - Disconnect from server\r\n");
+	helpMsg.append(":localhost 371 " + nick + " :  HELP                      - Display this help\r\n");
+	// RPL_ENDOFINFO (374)
+	helpMsg.append(":localhost 374 " + nick + " :End of INFO list\r\n");
+	
+	std::cout << "Help information sent to client: " << sender_fd << std::endl;
+	return helpMsg;
 }
