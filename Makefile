@@ -6,6 +6,10 @@ SRC = srcs/main.cpp\
 	  srcs/Server.cpp\
 	  srcs/commands/commands.cpp\
 	  srcs/commands/nick.cpp\
+	  srcs/commands/join.cpp\
+	  srcs/commands/user.cpp\
+	  srcs/commands/pass.cpp\
+	  srcs/commands/privmsg.cpp\
 
 CXX = c++
 
