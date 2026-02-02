@@ -62,7 +62,19 @@ bool Channel::getHasPassword() const // retorna se o canal tem senha
     return _hasPassword;
 }
 
-
+int Channel::addEnvited(Client* member)
+{
+    if (_invitedMembers.find(member->getClientfd()) == _invitedMembers.end())
+    {
+        _invitedMembers.insert(std::pair<int, Client *>(member->getClientfd(), member));
+        return 1;
+    }
+    return -1;
+}
+void Channel::removeEnvited(int clientFd)
+{
+    _members.erase(clientFd);
+}
 
 // Member management
 int Channel::addMember(Client* member) // adiciona um membro ao canal
@@ -136,7 +148,7 @@ void Channel::setBannedMember(Client* member) // adiciona um membro à lista de 
 
 }
 
-void Channel::setInvitedMember(Client* member) // adiciona um membro à lista de convidados
+/*void Channel::setInvitedMember(Client* member) // adiciona um membro à lista de convidados
 {
     if (_invitedMembers.find(member->getClientfd()) != _invitedMembers.end())
         return;
@@ -147,7 +159,7 @@ void Channel::setInvitedMember(Client* member) // adiciona um membro à lista de
     if (_bannedMembers.find(member->getClientfd()) != _bannedMembers.end())
         _bannedMembers.erase(member->getClientfd());
     _invitedMembers.insert(std::pair<int, Client *>(member->getClientfd(), member));
-}
+}*/
 
 
 

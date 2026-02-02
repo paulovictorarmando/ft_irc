@@ -54,12 +54,16 @@ class Channel
         void removeMember(int clientFd);
         void removeOperator(int clientFd);
 
+        //envite management
+        int addEnvited(Client* member);
+        void removeEnvited(int clientFd);
+
         //setters
         void setChannelPassword(const std::string& password);
         void setInviteOnly(void);
         void setHasPassword(void);
         void setBannedMember(Client* member);
-        void setInvitedMember(Client* member);
+       // void setInvitedMember(Client* member);
 
         // Verification
         bool isMember(int clientFd) const;

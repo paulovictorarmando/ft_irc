@@ -57,6 +57,8 @@ class Server
         std::string attemptRegistration(int fd);
 		std::string _joinChannel(commandRequest& request, int fd);
 		std::string _privmsg(commandRequest& request, int sender_fd);
+		std::string _invite(commandRequest& request, int fd);
+		std::string _kick(commandRequest& request, int fd);
 
 		//verificadores
 		bool isValidChannelName(const std::string& name);

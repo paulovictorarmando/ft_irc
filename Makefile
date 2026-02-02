@@ -9,7 +9,9 @@ SRC = srcs/main.cpp\
 	  srcs/commands/join.cpp\
 	  srcs/commands/user.cpp\
 	  srcs/commands/pass.cpp\
+	  srcs/commands/invite.cpp\
 	  srcs/commands/privmsg.cpp\
+	  srcs/commands/kick.cpp\
 
 CXX = c++
 

@@ -29,7 +29,9 @@ std::string Server::_parsing(const std::string& msg, int sender_fd)
     if (request.command == "USER") return _setUserName(request, sender_fd);
     if (request.command == "PING") return _pingPong(request, sender_fd);
     if (request.command == "JOIN") return _joinChannel(request, sender_fd);
+    if (request.command == "INVITE") return _invite(request, sender_fd);
     if (request.command == "PRIVMSG") return _privmsg(request, sender_fd);
+    if (request.command == "KICK") return _kick(request, sender_fd);
     if (request.command == "HELP" || request.command == "H") return _printHelpInfo(sender_fd);
 
     // Resposta padrão RFC para comando desconhecido (421)
