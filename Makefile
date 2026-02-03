@@ -12,6 +12,7 @@ SRC = srcs/main.cpp\
 	  srcs/commands/invite.cpp\
 	  srcs/commands/privmsg.cpp\
 	  srcs/commands/kick.cpp\
+	  srcs/commands/topic.cpp\
 
 CXX = c++
 

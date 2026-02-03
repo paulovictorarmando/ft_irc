@@ -59,6 +59,7 @@ class Server
 		std::string _privmsg(commandRequest& request, int sender_fd);
 		std::string _invite(commandRequest& request, int fd);
 		std::string _kick(commandRequest& request, int fd);
+		std::string	_topic(commandRequest& request, int sender_fd);
 
 		//verificadores
 		bool isValidChannelName(const std::string& name);
