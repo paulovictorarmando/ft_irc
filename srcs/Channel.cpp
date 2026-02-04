@@ -6,7 +6,7 @@
 /*   By: lantonio <lantonio@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 10:45:21 by hmateque          #+#    #+#             */
-/*   Updated: 2026/02/03 12:55:40 by lantonio         ###   ########.fr       */
+/*   Updated: 2026/02/04 14:21:59 by lantonio         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,9 +15,13 @@
 Channel::Channel(const std::string& channelName, Client* creator)
 	: _name(channelName), _members(), _operators()
 {
+	_key = "";
 	_topic = "";
 	_hasTopic = false;
 	_isOperatorsOnly = false;
+	_hasKey = false;
+	_hasLimit = false;
+	_limit = 0;
 	_operators.insert(std::pair<int, Client*>(creator->getClientfd(), creator));
 	_members.insert(std::pair<int, Client*>(creator->getClientfd(), creator));
 }
@@ -71,6 +75,22 @@ bool    Channel::getHasTopic() const { // check if channel has a topic
 
 bool	Channel::getIsOperatorsOnly() const { // check if channel is in mode +t
 	return this->_isOperatorsOnly;
+}
+
+bool	Channel::getHasKey() const {
+	return this->_hasKey;
+}
+
+bool	Channel::getHasLimit() const {
+	return this->_hasLimit;
+}
+
+int		Channel::getLimit() const {
+	return this->_limit;
+}
+
+std::string	Channel::getKey() const {
+	return this->_key;
 }
 
 std::string Channel::getTopic() const {
@@ -142,9 +162,14 @@ void Channel::setChannelPassword(const std::string& password) // seta a senha do
 	_channelPassword = password;
 }
 
-void Channel::setInviteOnly(void) // seta o canal como invite-only
+void Channel::setInviteOnly(int member_id, std::string mode) // seta o canal como invite-only
 {
-	 _isInviteOnly = true; 
+	if (!isOperator(member_id))
+		return;
+	if (mode == "+i")
+		_isInviteOnly = true;
+	else
+		_isInviteOnly = false;
 }
 
 void Channel::setHasPassword(void) // seta o canal como tendo senha
@@ -165,23 +190,55 @@ void Channel::setBannedMember(Client* member) // adiciona um membro à lista de 
 
 void    Channel::setTopic(int member_id, std::string topic) { //set a topic to the channel
 	if (!(_members.find(member_id) != _members.end()))
+	{
+		std::cout << "Saindo" << std::endl;
 		return;
+	}
 	if (topic.size() >= 512 || topic.size() <= 0)
+	{
+		std::cout << "Saindo 2" << std::endl;
 		return;
+	}
 	
 	// return if is in +t mode and member is not an operator
 
 	this->_topic = topic;
+	this->_hasTopic = true;
 }
 
-void	Channel::setIsOperatorsOnly(int member_id, std::string mode, std::string nick) {
-	(void)nick;
-	if (!(_operators.find(member_id) != _operators.end()))
+void	Channel::setIsOperatorsOnly(int member_id, std::string mode) {
+	if (!isOperator(member_id))
 		return;
 	if (mode == "+o")
 		_isOperatorsOnly = true;
 	else
 		_isOperatorsOnly = false;
+}
+
+void	Channel::setKey(int member_id, std::string mode, std::string key) {
+	if (!isOperator(member_id))
+		return;
+
+	if (mode == "-k")
+		_hasKey = false;
+	else
+	{
+		_hasKey = true;
+		_key = key;
+	}
+}
+
+void	Channel::setLimit(int member_id, std::string mode, int limit) {
+	if (!isOperator(member_id))
+		return;
+
+	if (mode == "-l")
+		_hasKey = false;
+	else
+	{
+		_hasKey = true;
+		_limit = limit;
+	}
 }
 
 void Channel::broadcastMessage(const std::string& message, int sender_fd) // Broadcast message to all members

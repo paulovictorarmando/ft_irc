@@ -6,13 +6,90 @@
 /*   By: lantonio <lantonio@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/03 11:43:50 by lantonio          #+#    #+#             */
-/*   Updated: 2026/02/03 14:04:00 by lantonio         ###   ########.fr       */
+/*   Updated: 2026/02/04 14:25:11 by lantonio         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../../includes/Server.hpp"
 
-static std::string modeO(commandRequest& request, int sender_fd, std::map<int, Client*>& clients, std::map<std::string, Channel*>& channels)
+static std::string toggleInviteOnly(commandRequest& request, int sender_fd, std::map<int, Client*>& clients, std::map<std::string, Channel*>& channels, std::string &modeMsg) {
+	if (channels.find(request.args[0]) != channels.end())
+	{
+		if (!channels[request.args[0]]->isMember(sender_fd) || !channels[request.args[0]]->isOperator(sender_fd))
+			return ":localhost 482 " + channels[request.args[0]]->getName() + " :You're not channel operator\r\n";
+
+		channels[request.args[0]]->setInviteOnly(sender_fd, request.args[1]);
+		modeMsg = ":" + clients[sender_fd]->getNickname() + " MODE " + channels[request.args[0]]->getName() + " " + request.args[1] + "\r\n";
+		channels[request.args[0]]->broadcastMessage(modeMsg, sender_fd);
+		return "";
+	}
+	return ":localhost 403 * :Non-existent channel\r\n";
+}
+
+static std::string toggleRestrictMode(commandRequest& request, int sender_fd, std::map<int, Client*>& clients, std::map<std::string, Channel*>& channels, std::string &modeMsg) {
+	if (channels.find(request.args[0]) != channels.end())
+	{
+		if (!channels[request.args[0]]->isMember(sender_fd) || !channels[request.args[0]]->isOperator(sender_fd))
+			return ":localhost 482 " + channels[request.args[0]]->getName() + " :You're not channel operator\r\n";
+
+		channels[request.args[0]]->setIsOperatorsOnly(sender_fd, request.args[1]);
+		modeMsg = ":" + clients[sender_fd]->getNickname() + " MODE " + channels[request.args[0]]->getName() + " " + request.args[1] + "\r\n";
+		channels[request.args[0]]->broadcastMessage(modeMsg, sender_fd);
+		return "";
+	}
+	return ":localhost 403 * :Non-existent channel\r\n";
+}
+
+static std::string toggleKey(commandRequest& request, int sender_fd, std::map<int, Client*>& clients, std::map<std::string, Channel*>& channels, std::string &modeMsg) {
+	if (channels.find(request.args[0]) != channels.end())
+	{
+		if (!channels[request.args[0]]->isMember(sender_fd) || !channels[request.args[0]]->isOperator(sender_fd))
+			return ":localhost 482 " + channels[request.args[0]]->getName() + " :You're not channel operator\r\n";
+
+		if (request.args.size() != 2 && request.args.size() != 3)
+			return ":localhost 461 * :Invalid number of params\r\n";
+
+		if (request.args.size() == 2 && request.args[1] == "-k")
+			channels[request.args[0]]->setKey(sender_fd, request.args[1], "");
+		else if (request.args.size() == 3 && request.args[1] == "+k")
+			channels[request.args[0]]->setKey(sender_fd, request.args[1], request.args[2]);
+		else
+			return ":localhost 461 * :Invalid order of parameters\r\n";
+		modeMsg = ":" + clients[sender_fd]->getNickname() + " MODE " + channels[request.args[0]]->getName() + " " + request.args[1] + "\r\n";
+		channels[request.args[0]]->broadcastMessage(modeMsg, sender_fd);
+		return "";
+	}
+	return ":localhost 403 * :Non-existent channel\r\n";
+}
+
+static std::string toggleLimit(commandRequest& request, int sender_fd, std::map<int, Client*>& clients, std::map<std::string, Channel*>& channels, std::string &modeMsg) {
+	if (channels.find(request.args[0]) != channels.end())
+	{
+		if (!channels[request.args[0]]->isMember(sender_fd) || !channels[request.args[0]]->isOperator(sender_fd))
+			return ":localhost 482 " + channels[request.args[0]]->getName() + " :You're not channel operator\r\n";
+
+		if (request.args.size() != 2 && request.args.size() != 3)
+			return ":localhost 461 * :Invalid number of params\r\n";
+
+		if (request.args.size() == 2 && request.args[1] == "-l")
+			channels[request.args[0]]->setLimit(sender_fd, request.args[1], 0);
+		else if (request.args.size() == 3 && request.args[1] == "+l")
+		{
+			int	limit = std::atoi(request.args[2].c_str());
+			if (limit < 0)
+				return ":localhost 471 * :Invalid limit	\r\n";
+			channels[request.args[0]]->setLimit(sender_fd, request.args[1], limit);
+		}
+		else
+			return ":localhost 461 * :Invalid order of parameters\r\n";
+		modeMsg = ":" + clients[sender_fd]->getNickname() + " MODE " + channels[request.args[0]]->getName() + " " + request.args[1] + "\r\n";
+		channels[request.args[0]]->broadcastMessage(modeMsg, sender_fd);
+		return "";
+	}
+	return ":localhost 471 * :Non-existent channel\r\n";
+}
+
+static std::string toggleOperator(commandRequest& request, int sender_fd, std::map<int, Client*>& clients, std::map<std::string, Channel*>& channels, std::string &modeMsg)
 {
 	if (request.args.size() != 3)
 		return ":localhost 461 * :Invalid number of parameters\r\n";
@@ -47,16 +124,16 @@ static std::string modeO(commandRequest& request, int sender_fd, std::map<int, C
 	if (mode == "+o")
 	{
 		channels[channel]->addOperator(clients[target_fd]);
-		std::string modeMsg = ":" + clients[sender_fd]->getNickname() + " MODE " + channel + " +o " + target_nick + "\r\n";
+		modeMsg = ":" + clients[sender_fd]->getNickname() + " MODE " + channel + " +o " + target_nick + "\r\n";
 		channels[channel]->broadcastMessage(modeMsg, sender_fd);
 	}
 	else if (mode == "-o")
 	{
 		channels[channel]->removeOperator(target_fd);
-		std::string modeMsg = ":" + clients[sender_fd]->getNickname() + " MODE " + channel + " -o " + target_nick + "\r\n";
+		modeMsg = ":" + clients[sender_fd]->getNickname() + " MODE " + channel + " -o " + target_nick + "\r\n";
 		channels[channel]->broadcastMessage(modeMsg, sender_fd);
 	}
-	
+
 	return "";
 }
 
@@ -68,8 +145,38 @@ std::string Server::_mode(commandRequest& request, int sender_fd)
 	if (request.args.size() < 2)
 		return ":localhost 461 * :Invalid params\r\n";
 
-	if (request.args[1] == "+o" || request.args[1] == "-o")
-		return modeO(request, sender_fd, _clients, _channels);
+	std::string	modeMsg;
+	std::string errorMsg;
+	
+	if (request.args[1] == "+i" || request.args[1] == "-i")
+		errorMsg = toggleInviteOnly(request, sender_fd, _clients, _channels, modeMsg);
+	else if (request.args[1] == "+t" || request.args[1] == "-t")
+		errorMsg = toggleRestrictMode(request, sender_fd, _clients, _channels, modeMsg);
+	else if (request.args[1] == "+k" || request.args[1] == "-k")
+		errorMsg = toggleKey(request, sender_fd, _clients, _channels, modeMsg);
+	else if (request.args[1] == "+o" || request.args[1] == "-o")
+		errorMsg = toggleOperator(request, sender_fd, _clients, _channels, modeMsg);
+	else if (request.args[1] == "+l" || request.args[1] == "-l")
+		errorMsg = toggleLimit(request, sender_fd, _clients, _channels, modeMsg);
+	else
+		return ":localhost 501 * :Unknown MODE flag " + request.args[1] + "\r\n";
+	
+	if (!errorMsg.empty())
+		return errorMsg;
 
-	return ":localhost 501 * :Unknown MODE flag\r\n";
+	if (!modeMsg.empty()) {
+		std::map<int, Client*> const &members = _channels[request.args[0]]->getMembers();
+		std::map<int, Client*>::const_iterator it;
+		for (it = members.begin(); it != members.end(); ++it)
+		{
+			Client* member = it->second;
+			if (member && member->getClientfd() != -1)
+			{
+				member->setSendBuffer(member->getSendBuffer());
+				enablePollout(member->getClientfd());
+			}
+		}
+		return "";
+	}
+	return":localhost 501 * :Unknown MODE flag" + request.args[1] + " \r\n";
 }
