@@ -6,7 +6,7 @@
 /*   By: lantonio <lantonio@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/03 09:35:28 by lantonio          #+#    #+#             */
-/*   Updated: 2026/02/03 11:22:50 by lantonio         ###   ########.fr       */
+/*   Updated: 2026/02/04 10:51:36 by lantonio         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,7 +30,7 @@ std::string	Server::_topic(commandRequest& request, int sender_fd) {
 			if (_channels.find(request.args[0]) != _channels.end() && _channels[request.args[0]]->isMember(sender_fd))
 			{
 				if (_channels[request.args[0]]->getHasTopic())
-					return "localhost 331 * :";
+					return "localhost 331 * :No topic setted to the channel\r\n";
 				return "localhost 332 * :" + _channels[request.args[0]]->getTopic();
 			} else
 				return ":localhost 403 * :Non-existent channel\r\n";
@@ -44,10 +44,20 @@ std::string	Server::_topic(commandRequest& request, int sender_fd) {
 				// if channel is in mode +t and user is not an operatorm return 482 
 				_channels[request.args[0]]->setTopic(sender_fd, request.args[1]);
 				
-				// Broadcast the topic change to all members
 				std::string nick = _clients[sender_fd]->getNickname();
 				std::string broadcastMsg = ":" + nick + " TOPIC " + request.args[0] + " :" + request.args[1] + "\r\n";
-				_channels[request.args[0]]->broadcastMessage(broadcastMsg, sender_fd);
+
+				std::map<int, Client*> const &members = _channels[request.args[0]]->getMembers();
+				std::map<int, Client*>::const_iterator it;
+				for (it = members.begin(); it != members.end(); ++it)
+				{
+					Client* member = it->second;
+					if (member && member->getClientfd() != -1)
+					{
+						member->setSendBuffer(member->getSendBuffer() + broadcastMsg);
+						enablePollout(member->getClientfd());
+					}
+				}
 				
 				return "";
 			}
