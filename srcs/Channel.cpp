@@ -6,7 +6,7 @@
 /*   By: lantonio <lantonio@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 10:45:21 by hmateque          #+#    #+#             */
-/*   Updated: 2026/02/04 12:19:22 by lantonio         ###   ########.fr       */
+/*   Updated: 2026/02/04 14:00:27 by lantonio         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,7 @@
 Channel::Channel(const std::string& channelName, Client* creator)
 	: _name(channelName), _members(), _operators()
 {
+	_key = "";
 	_topic = "";
 	_hasTopic = false;
 	_isOperatorsOnly = false;
@@ -73,6 +74,14 @@ bool    Channel::getHasTopic() const { // check if channel has a topic
 
 bool	Channel::getIsOperatorsOnly() const { // check if channel is in mode +t
 	return this->_isOperatorsOnly;
+}
+
+bool	Channel::getHasKey() const {
+	return this->_hasKey;
+}
+
+std::string	Channel::getKey() const {
+	return this->_key;
 }
 
 std::string Channel::getTopic() const {
@@ -144,9 +153,14 @@ void Channel::setChannelPassword(const std::string& password) // seta a senha do
 	_channelPassword = password;
 }
 
-void Channel::setInviteOnly(void) // seta o canal como invite-only
+void Channel::setInviteOnly(int member_id, std::string mode) // seta o canal como invite-only
 {
-	 _isInviteOnly = true; 
+	if (!isOperator(member_id))
+		return;
+	if (mode == "+i")
+		_isInviteOnly = true;
+	else
+		_isInviteOnly = false;
 }
 
 void Channel::setHasPassword(void) // seta o canal como tendo senha
@@ -186,10 +200,23 @@ void    Channel::setTopic(int member_id, std::string topic) { //set a topic to t
 void	Channel::setIsOperatorsOnly(int member_id, std::string mode) {
 	if (!isOperator(member_id))
 		return;
-	if (mode == "+t")
+	if (mode == "+o")
 		_isOperatorsOnly = true;
 	else
 		_isOperatorsOnly = false;
+}
+
+void	Channel::setKey(int member_id, std::string mode, std::string key) {
+	if (!isOperator(member_id))
+		return;
+
+	if (mode == "-k")
+		_hasKey = false;
+	else
+	{
+		_hasKey = true;
+		_key = key;
+	}
 }
 
 void Channel::broadcastMessage(const std::string& message, int sender_fd) // Broadcast message to all members
