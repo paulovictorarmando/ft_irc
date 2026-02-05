@@ -1,14 +1,14 @@
-/* ************************************************************************** */
+/******************************************************************************/
 /*                                                                            */
 /*                                                        :::      ::::::::   */
 /*   Channel.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lantonio <lantonio@student.42.fr>          +#+  +:+       +#+        */
+/*   By: hmateque <hmateque@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 10:45:21 by hmateque          #+#    #+#             */
-/*   Updated: 2026/02/04 14:21:59 by lantonio         ###   ########.fr       */
+/*   Updated: 2026/02/05 14:02:05 by hmateque         ###   ########.fr       */
 /*                                                                            */
-/* ************************************************************************** */
+/******************************************************************************/
 
 #include "../includes/Channel.hpp"
 
@@ -108,7 +108,7 @@ int Channel::addEnvited(Client* member)
 }
 void Channel::removeEnvited(int clientFd)
 {
-	_members.erase(clientFd);
+	_invitedMembers.erase(clientFd);
 }
 
 // Member management
@@ -168,7 +168,7 @@ void Channel::setInviteOnly(int member_id, std::string mode) // seta o canal com
 		return;
 	if (mode == "+i")
 		_isInviteOnly = true;
-	else
+	else if (mode == "-i")
 		_isInviteOnly = false;
 }
 
@@ -206,37 +206,40 @@ void    Channel::setTopic(int member_id, std::string topic) { //set a topic to t
 	this->_hasTopic = true;
 }
 
-void	Channel::setIsOperatorsOnly(int member_id, std::string mode) {
+void	Channel::setIsOperatorsOnly(int member_id, std::string mode) 
+{
 	if (!isOperator(member_id))
 		return;
 	if (mode == "+o")
 		_isOperatorsOnly = true;
-	else
+	else if (mode == "-o")
 		_isOperatorsOnly = false;
 }
 
-void	Channel::setKey(int member_id, std::string mode, std::string key) {
+void	Channel::setKey(int member_id, std::string mode, std::string key) 
+{
 	if (!isOperator(member_id))
 		return;
 
 	if (mode == "-k")
 		_hasKey = false;
-	else
+	else if (mode == "+k")
 	{
 		_hasKey = true;
 		_key = key;
 	}
 }
 
-void	Channel::setLimit(int member_id, std::string mode, int limit) {
+void	Channel::setLimit(int member_id, std::string mode, int limit) 
+{
 	if (!isOperator(member_id))
 		return;
 
 	if (mode == "-l")
-		_hasKey = false;
-	else
+		_hasLimit = false;
+	else if (mode == "+l")
 	{
-		_hasKey = true;
+		_hasLimit = true;
 		_limit = limit;
 	}
 }

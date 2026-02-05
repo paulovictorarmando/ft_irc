@@ -6,7 +6,7 @@
 /*   By: hmateque <hmateque@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/30 12:17:26 by hmateque          #+#    #+#             */
-/*   Updated: 2026/01/30 14:03:32 by hmateque         ###   ########.fr       */
+/*   Updated: 2026/02/05 14:02:45 by hmateque         ###   ########.fr       */
 /*                                                                            */
 /******************************************************************************/
 
@@ -69,6 +69,8 @@ std::string Server::_joinChannel(commandRequest& request, int fd)
         if (password != _channels[channelName]->getChannelPassword())
             return ":localhost 475 " + _clients[fd]->getNickname() + " " + channelName + " :Cannot join channel (+k) - bad key\r\n";
     }
+    // remover o convite se existir
+    _channels[channelName]->removeEnvited(fd);
 
     _channels[channelName]->addMember(_clients[fd]);
 
