@@ -1,9 +1,13 @@
 #include "../includes/Server.hpp"
 #include "../includes/Client.hpp"
 
+// Variável global para controle de sinal (signal-safe)
+static volatile sig_atomic_t g_running = 1;
+
 void Server::handler(int signal)
 {
-	std::cout << "Server closed by signal: " << signal << std::endl;
+	(void)signal;
+	g_running = 0;
 }
 
 Server::Server(int port, const std::string& password) : _serverFd(-1), _port(port), _password(password)
@@ -18,6 +22,7 @@ Server::Server(int port, const std::string& password) : _serverFd(-1), _port(por
 
 Server::~Server()
 {
+	// Deletar todos os clientes
 	for (std::map<int, Client*>::iterator it = _clients.begin();
 		it != _clients.end(); ++it)
 	{
@@ -25,6 +30,15 @@ Server::~Server()
 		delete it->second;
 	}
 	_clients.clear();
+	
+	// Deletar todos os canais
+	for (std::map<std::string, Channel*>::iterator it = _channels.begin();
+		it != _channels.end(); ++it)
+	{
+		delete it->second;
+	}
+	_channels.clear();
+	
 	if (_serverFd >= 0)
 		close(_serverFd);
 }
@@ -60,24 +74,69 @@ void Server::run(void)
     signal(SIGINT, handler);
     signal(SIGQUIT, handler); 
     std::cout << "Server running in localhost port " << this->_port << std::endl;
-    while (true)
+    while (g_running)
     {
-        if(poll(&_pollfds[0], _pollfds.size(), -1) == -1)
-            break;
-        for (int i = _pollfds.size() - 1; i >= 0; --i)
+        if(poll(&_pollfds[0], _pollfds.size(), 1000) == -1)
         {
-            if (_pollfds[i].revents & POLLIN)
+            if (!g_running)
+                break;
+            continue;
+        }
+        
+        // Coletar eventos ANTES de processar (evita problemas com índices mudando)
+        std::vector<std::pair<int, short> > events; // fd, revents
+        for (size_t i = 0; i < _pollfds.size(); ++i)
+        {
+            if (_pollfds[i].revents != 0)
+                events.push_back(std::make_pair(_pollfds[i].fd, _pollfds[i].revents));
+        }
+        
+        // Processar eventos usando FDs (não índices)
+        for (size_t i = 0; i < events.size(); ++i)
+        {
+            int fd = events[i].first;
+            short revents = events[i].second;
+            
+            // Processar POLLIN
+            if (revents & POLLIN)
             {
-                if (_pollfds[i].fd == _serverFd)
+                if (fd == _serverFd)
+                {
                     acceptClient();
+                }
                 else
-                    receiveData(i);
+                {
+                    // Verificar se o cliente ainda existe
+                    if (_clients.find(fd) != _clients.end())
+                    {
+                        // Encontrar o índice atual do fd
+                        for (size_t j = 0; j < _pollfds.size(); ++j)
+                        {
+                            if (_pollfds[j].fd == fd)
+                            {
+                                receiveData(j);
+                                break;
+                            }
+                        }
+                    }
+                }
             }
-            // verificar se o indice ainda existe apos remover cliente
-            if (i < (int)_pollfds.size() && (_pollfds[i].revents & POLLOUT))
-                sendData(i);
+            
+            // Processar POLLOUT - verificar novamente se cliente existe
+            if ((revents & POLLOUT) && _clients.find(fd) != _clients.end())
+            {
+                for (size_t j = 0; j < _pollfds.size(); ++j)
+                {
+                    if (_pollfds[j].fd == fd)
+                    {
+                        sendData(j);
+                        break;
+                    }
+                }
+            }
         }
     }
+    std::cout << "Server shutting down..." << std::endl;
 }
 
 void Server::acceptClient(void)
@@ -155,17 +214,17 @@ void Server::receiveData(int indexFd)
 		if (cmd.length() > 512)
 		{
 			client->setSendBuffer(client->getSendBuffer().append("ERROR :Command too long\r\n"));
-			//client->sendBuffer.append("ERROR :Command too long\r\n");
 		}
 		else
 		{
-			// O _parsing deve processar a lógica e retornar a string formatada da RFC 1459
-			// Ex: Se recebeu "PING", retorna "PONG :servidor\r\n"
 			std::string reply = _parsing(cmd, fd);
 			client->setSendBuffer(client->getSendBuffer().append(reply));
-			//client->sendBuffer.append(reply);
-			//std::cout << "Command: " << cmd << std::endl;
 		}
+		
+		// PROTEÇÃO: Se o cliente foi removido durante o processamento (ex: QUIT), parar
+		if (_clients.find(fd) == _clients.end())
+			return;
+		
 		enablePollout(fd);
 	}
 }
@@ -183,10 +242,7 @@ void Server::sendData(int indexFd)
 	if (bytes <= 0) 
 	{
 		if (bytes < 0) 
-		{
-			if (errno == EAGAIN || errno == EWOULDBLOCK) return;
-			std::cerr << "Erro fatal no send" << std::endl;
-		}
+			return;
 		removeClient(indexFd);
 		return;
 	}
@@ -198,11 +254,35 @@ void Server::sendData(int indexFd)
 void Server::removeClient(int indexFd)
 {
 	int clientFd = _pollfds[indexFd].fd;
+	Client* client = _clients[clientFd];
+
+	// 1. REMOVER DO CLIENTE DE TODOS OS CANAIS (crítico para evitar dangling pointers)
+	std::map<std::string, Channel*>::iterator it = _channels.begin();
+	while (it != _channels.end())
+	{
+		it->second->removeMember(clientFd);
+		it->second->removeOperator(clientFd);
+		it->second->removeEnvited(clientFd);
+		
+		// Se o canal ficou vazio, deletar o canal também
+		if (it->second->getMembers().empty())
+		{
+			delete it->second;
+			_channels.erase(it++);
+		}
+		else
+		{
+			++it;
+		}
+	}
+
+	// 2. LIMPEZA DO SERVIDOR
+	std::cout << "DEBUG: Removendo cliente " << clientFd << std::endl;
 	close(clientFd);
-	_pollfds[indexFd];
 	_pollfds.erase(_pollfds.begin() + indexFd);
 
-	delete _clients[clientFd];
+	// 3. DELETAR O OBJETO DO CLIENTE (sempre por último!)
+	delete client;
 	_clients.erase(clientFd);
 }
 

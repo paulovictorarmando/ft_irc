@@ -41,6 +41,6 @@ fclean: clean
 re: fclean all
 
 run:
-	./$(NAME) 3000 1234
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes -- ./$(NAME) 3000 1234
 
 .PHONY: all clean fclean re run

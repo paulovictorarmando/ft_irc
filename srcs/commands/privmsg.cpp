@@ -6,7 +6,7 @@
 /*   By: hmateque <hmateque@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/30 12:22:50 by hmateque          #+#    #+#             */
-/*   Updated: 2026/01/30 14:20:46 by hmateque         ###   ########.fr       */
+/*   Updated: 2026/02/09 15:08:48 by hmateque         ###   ########.fr       */
 /*                                                                            */
 /******************************************************************************/
 
@@ -14,6 +14,10 @@
 
 std::string Server::_privmsg(commandRequest& request, int sender_fd)
 {
+    // PROTEÇÃO: Verificar se o cliente remetente ainda existe
+    if (_clients.find(sender_fd) == _clients.end())
+        return "";
+    
     // 1. Verificar autenticação
     if (!_clients[sender_fd]->isAuth())
         return ":localhost 451 * :You have not registered\r\n";
@@ -40,17 +44,27 @@ std::string Server::_privmsg(commandRequest& request, int sender_fd)
         if (!_channels[target]->isMember(sender_fd))
             return ":localhost 442 " + _clients[sender_fd]->getNickname() + " " + target + " :You're not on that channel\r\n";
         
-        // Enviar para TODOS os membros do canal (exceto o remetente)
-        std::map<int, Client*> members = _channels[target]->getMembers();
+        // Coletar apenas os FDs dos membros (não os ponteiros!)
+        std::map<int, Client*> const &members = _channels[target]->getMembers();
+        std::vector<int> memberFds;
+        for (std::map<int, Client*>::const_iterator it = members.begin(); it != members.end(); ++it)
+        {
+            if (it->first != sender_fd)
+                memberFds.push_back(it->first);
+        }
+        
+        // Montar a mensagem
         std::string fullMsg = prefix + " PRIVMSG " + target + " :" + message + "\r\n";
         
-        for (std::map<int, Client*>::iterator it = members.begin(); it != members.end(); ++it)
+        // Enviar usando os FDs e verificando no mapa _clients do servidor
+        for (size_t i = 0; i < memberFds.size(); ++i)
         {
-            // Não envia para si mesmo
-            if (it->first != sender_fd)
+            int fd = memberFds[i];
+            // PROTEÇÃO: Verificar se o cliente ainda existe no mapa PRINCIPAL do servidor
+            if (_clients.find(fd) != _clients.end())
             {
-                it->second->setSendBuffer(it->second->getSendBuffer() + fullMsg);
-                enablePollout(it->first);
+                _clients[fd]->setSendBuffer(_clients[fd]->getSendBuffer() + fullMsg);
+                enablePollout(fd);
             }
         }
         

@@ -1,14 +1,14 @@
-/* ************************************************************************** */
+/******************************************************************************/
 /*                                                                            */
 /*                                                        :::      ::::::::   */
 /*   commands.cpp                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lantonio <lantonio@student.42.fr>          +#+  +:+       +#+        */
+/*   By: hmateque <hmateque@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/24 12:03:08 by hmateque          #+#    #+#             */
-/*   Updated: 2026/02/04 11:14:24 by lantonio         ###   ########.fr       */
+/*   Updated: 2026/02/09 13:13:49 by hmateque         ###   ########.fr       */
 /*                                                                            */
-/* ************************************************************************** */
+/******************************************************************************/
 
 #include "../../includes/Server.hpp"
 
@@ -58,24 +58,29 @@ commandRequest Server::_splitRequest(const std::string& req)
 	{
 		if (req[i] == ' ')
 		{
-			if (req[i + 1] == ' ') 
+			if (req[i + 1] && req[i + 1] == ' ') 
 			{
 				request.invalidMessage = true;
 				return (request);
 			}
 			request.args.push_back(req.substr(j, i - j));
-			while (req[i] == ' ')
+			while (req[i] && req[i] == ' ')
 				i++;
 			j = i;
 		}
-		if (req[i] == ':')
+		if (req[i] && req[i] == ':')
 		{
-			if (req[i - 1] != ' ') 
+			if ((i == 0) || (i > 0 && req[i - 1] != ' ')) 
 			{
 				request.invalidMessage = true;
 				return (request);
 			}
 			request.args.push_back(req.substr(i + 1, req.length() - i));
+			if (request.args.empty())
+			{
+				request.invalidMessage = true;
+				return (request);
+			}
 			request.command = request.args[0];
 			request.args.erase(request.args.begin());
 			return (request);
@@ -85,6 +90,11 @@ commandRequest Server::_splitRequest(const std::string& req)
 
 	if (i && req[j])
 		request.args.push_back(req.substr(j, i - j));
+	if (request.args.empty())
+	{
+		request.invalidMessage = true;
+		return (request);
+	}
 	request.command = request.args[0];
 	request.args.erase(request.args.begin());
 	return (request);

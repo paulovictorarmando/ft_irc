@@ -1,27 +1,34 @@
-/* ************************************************************************** */
+/******************************************************************************/
 /*                                                                            */
 /*                                                        :::      ::::::::   */
 /*   Channel.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lantonio <lantonio@student.42.fr>          +#+  +:+       +#+        */
+/*   By: hmateque <hmateque@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/01/22 10:45:21 by hmateque          #+#    #+#             */
-/*   Updated: 2026/02/04 14:21:59 by lantonio         ###   ########.fr       */
+/*   Updated: 2026/02/09 13:15:03 by hmateque         ###   ########.fr       */
 /*                                                                            */
-/* ************************************************************************** */
+/******************************************************************************/
 
 #include "../includes/Channel.hpp"
 
 Channel::Channel(const std::string& channelName, Client* creator)
-	: _name(channelName), _members(), _operators()
+	: _name(channelName), 
+	  _channelPassword(""),
+	  _topic(""),
+	  _bannedMembers(),
+	  _invitedMembers(),
+	  _members(),
+	  _operators(),
+	  _key(""),
+	  _limit(0),
+	  _hasTopic(false),
+	  _hasLimit(false),
+	  _hasKey(false),
+	  _isInviteOnly(false),
+	  _isOperatorsOnly(false),
+	  _hasPassword(false)
 {
-	_key = "";
-	_topic = "";
-	_hasTopic = false;
-	_isOperatorsOnly = false;
-	_hasKey = false;
-	_hasLimit = false;
-	_limit = 0;
 	_operators.insert(std::pair<int, Client*>(creator->getClientfd(), creator));
 	_members.insert(std::pair<int, Client*>(creator->getClientfd(), creator));
 }
@@ -108,7 +115,7 @@ int Channel::addEnvited(Client* member)
 }
 void Channel::removeEnvited(int clientFd)
 {
-	_members.erase(clientFd);
+	_invitedMembers.erase(clientFd);
 }
 
 // Member management
@@ -168,7 +175,7 @@ void Channel::setInviteOnly(int member_id, std::string mode) // seta o canal com
 		return;
 	if (mode == "+i")
 		_isInviteOnly = true;
-	else
+	else if (mode == "-i")
 		_isInviteOnly = false;
 }
 
@@ -206,37 +213,40 @@ void    Channel::setTopic(int member_id, std::string topic) { //set a topic to t
 	this->_hasTopic = true;
 }
 
-void	Channel::setIsOperatorsOnly(int member_id, std::string mode) {
+void	Channel::setIsOperatorsOnly(int member_id, std::string mode) 
+{
 	if (!isOperator(member_id))
 		return;
 	if (mode == "+o")
 		_isOperatorsOnly = true;
-	else
+	else if (mode == "-o")
 		_isOperatorsOnly = false;
 }
 
-void	Channel::setKey(int member_id, std::string mode, std::string key) {
+void	Channel::setKey(int member_id, std::string mode, std::string key) 
+{
 	if (!isOperator(member_id))
 		return;
 
 	if (mode == "-k")
 		_hasKey = false;
-	else
+	else if (mode == "+k")
 	{
 		_hasKey = true;
 		_key = key;
 	}
 }
 
-void	Channel::setLimit(int member_id, std::string mode, int limit) {
+void	Channel::setLimit(int member_id, std::string mode, int limit) 
+{
 	if (!isOperator(member_id))
 		return;
 
 	if (mode == "-l")
-		_hasKey = false;
-	else
+		_hasLimit = false;
+	else if (mode == "+l")
 	{
-		_hasKey = true;
+		_hasLimit = true;
 		_limit = limit;
 	}
 }
