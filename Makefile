@@ -22,6 +22,8 @@ CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -g
 HEAD = includes/Channel.hpp\
 		includes/Client.hpp\
 		includes/Server.hpp\
+		includes/Command.hpp\
+		includes/irc.hpp\
 
 OBJ = $(SRC:.cpp=.o)
 
