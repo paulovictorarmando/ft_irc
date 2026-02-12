@@ -54,8 +54,15 @@ class IRCClient:
         self.send(f"PASS {PASS}")
         self.send(f"NICK {nick}")
         self.send(f"USER {user} 0 * :realname")
-        time.sleep(0.5)
-        return self.recv()  # consume welcome
+        # Read until we get 001 (welcome) or exhaust retries
+        data = ""
+        for _ in range(5):
+            time.sleep(0.3)
+            chunk = self.recv()
+            data += chunk
+            if "001" in data:
+                break
+        return data
 
     def close(self):
         try:
@@ -485,8 +492,11 @@ def test_invite_non_op():
 def test_topic_set_get():
     section("TESTE 19: TOPIC SET / GET")
     c1 = IRCClient("TopicUser")
-    c1.connect(); c1.auth("topicuser1")
-    c1.send("JOIN #topictest"); time.sleep(0.3); c1.recv()
+    c1.connect(); c1.auth("topuser1")
+    time.sleep(0.3)
+    c1.send("JOIN #topictest")
+    time.sleep(0.5); c1.recv()  # consume JOIN response fully
+    time.sleep(0.3)
 
     # Set topic
     c1.send("TOPIC #topictest :This is the topic")
@@ -679,17 +689,21 @@ def test_mode_limit():
     c1 = IRCClient("LimOp"); c2 = IRCClient("LimOk"); c3 = IRCClient("LimBlocked")
 
     c1.connect(); c1.auth("limop1")
-    c1.send("JOIN #limtest"); time.sleep(0.3); c1.recv()
+    time.sleep(0.3)
+    c1.send("JOIN #limtest"); time.sleep(0.5); c1.recv()
 
     # Set limit to 2
-    c1.send("MODE #limtest +l 2"); time.sleep(0.3); c1.recv()
+    c1.send("MODE #limtest +l 2"); time.sleep(0.5); c1.recv()
 
     c2.connect(); c2.auth("limok1")
+    time.sleep(0.3)
     c2.send("JOIN #limtest")
     time.sleep(0.5)
     res2 = c2.recv()
+    c1.recv()  # consume c2 JOIN notification
 
-    c3.connect(); c3.auth("limblocked1")
+    c3.connect(); c3.auth("limblk1")
+    time.sleep(0.3)
     c3.send("JOIN #limtest")
     time.sleep(0.5)
     res3 = c3.recv()
@@ -711,19 +725,21 @@ def test_mode_limit_remove():
     c1 = IRCClient("LimRmOp"); c2 = IRCClient("LimRmJoin")
 
     c1.connect(); c1.auth("limrmop1")
-    c1.send("JOIN #limrm"); time.sleep(0.3); c1.recv()
+    time.sleep(0.3)
+    c1.send("JOIN #limrm"); time.sleep(0.5); c1.recv()
 
-    c1.send("MODE #limrm +l 1"); time.sleep(0.3); c1.recv()
+    c1.send("MODE #limrm +l 1"); time.sleep(0.5); c1.recv()
 
     # c2 should be blocked
-    c2.connect(); c2.auth("limrmjoin1")
-    c2.send("JOIN #limrm")
+    c2.connect(); c2.auth("limrmj1")
     time.sleep(0.3)
+    c2.send("JOIN #limrm")
+    time.sleep(0.5)
     res = c2.recv()
     blocked = "471" in res
 
     # Remove limit
-    c1.send("MODE #limrm -l"); time.sleep(0.3); c1.recv()
+    c1.send("MODE #limrm -l"); time.sleep(0.5); c1.recv()
 
     # c2 should now be able to join
     c2.send("JOIN #limrm")
@@ -744,11 +760,13 @@ def test_mode_non_op():
     section("TESTE 25: MODE POR NÃO-OPERADOR")
     c1 = IRCClient("ModeOpReal"); c2 = IRCClient("ModeNorm")
 
-    c1.connect(); c1.auth("modeopreal")
-    c1.send("JOIN #modepriv"); time.sleep(0.3); c1.recv()
+    c1.connect(); c1.auth("mdopriv1")
+    time.sleep(0.3)
+    c1.send("JOIN #modepriv"); time.sleep(0.5); c1.recv()
 
     c2.connect(); c2.auth("modenorm1")
-    c2.send("JOIN #modepriv"); time.sleep(0.3); c2.recv(); c1.recv()
+    time.sleep(0.3)
+    c2.send("JOIN #modepriv"); time.sleep(0.5); c2.recv(); c1.recv()
 
     # Non-op tries to set +i
     c2.send("MODE #modepriv +i")

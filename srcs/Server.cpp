@@ -72,7 +72,8 @@ void Server::setupSocket(void)
 void Server::run(void)
 {
     signal(SIGINT, handler);
-    signal(SIGQUIT, handler); 
+    signal(SIGQUIT, handler);
+    signal(SIGPIPE, SIG_IGN); 
     std::cout << "Server running in localhost port " << this->_port << std::endl;
     while (g_running)
     {
