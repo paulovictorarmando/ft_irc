@@ -7,8 +7,8 @@ import os
 
 # CONFIGURAÇÃO
 HOST = "127.0.0.1"
-PORT = 3000
-PASS = "1234"
+PORT = 3001
+PASS = ""
 
 # Contadores globais
 passed = 0
